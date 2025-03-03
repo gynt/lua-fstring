@@ -1,4 +1,4 @@
-# lua-fstring
+# Easy string formatting in lua
 Lua implementation of Python f-strings (string formatting) focused on performance
 
 ## Usage
