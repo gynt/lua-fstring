@@ -12,7 +12,10 @@ print(f"Let's format {v}") -- prints: "Let's format 100"
 print(f"Let's format {v:0x%X}") -- prints: "Let's format 0x64"
 ```
 
-## Implementation
+### Formatting options
+Formatting options are provided by lua's `string.format` library.
+
+## Implementation & Caveats
 The f string searches the environment of the calling scope for variables named inside `{}`.  
 If not found it searches the global environment. 
 It does not "walk up" the stacktrace to find variables in those environments. This is for performance reasons.
