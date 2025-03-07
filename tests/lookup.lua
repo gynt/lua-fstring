@@ -1,28 +1,142 @@
-global_1 = 100
 
-function a()
-  return f[[{global_1}]]
+local namespace = {}
+
+local options = {
+  walk = true,
+}
+
+local lookup
+
+function namespace.setOption(k, v)
+  if k == 'walk' then
+    if v then
+      lookup = lookup2
+    else
+      lookup = lookup1
+    end
+  end
 end
 
-if a() ~= "0x64" then
-  error()
+function parse(s)
+  
+  local results = {}
+  
+  local r = ''
+  local is_var = false
+  local lhs = ''
+  local rhs = ''
+  local is_rhs = false
+  local var = ''
+  local start = 0
+  local finish = 0
+
+  for i=1,s:len() do
+    local c = s:sub(i, i)
+    if c == '{' then
+      table.insert(results, r)
+    
+      is_var = true
+      var = ''
+      lhs = ''
+      rhs = ''
+      is_rhs = false
+      start = i
+    elseif c == '}' then
+      is_var = false
+      finish = i
+      if is_rhs then
+        table.insert(results, {start = start, finish = finish, lhs = lhs:gsub("^%s+", ""):gsub("%s+$", ""),
+          rhs = rhs,
+        })
+      else
+        table.insert(results, {start = start, finish = finish, lhs = lhs:gsub("^%s+", ""):gsub("%s+$", ""),
+          rhs = nil,
+        })
+      end
+      
+      r = ''
+    else
+      if is_var then
+        if c == ":" then
+          is_rhs = true
+        else
+          if is_rhs then 
+            rhs = rhs .. c
+          else
+            lhs = lhs .. c
+          end
+        end        
+      else
+        r = r .. c
+      end
+    end
+  end
+  
+  table.insert(results, r)
+  
+  return results
 end
 
-function b()
-  local local_1 = 200
-  local s =  f[[{global_1} {local_1}]]
-  return s
+local lookup
+
+function lookup1(var, level, use_globals)
+  for i=1,100,1 do
+    local k, v = debug.getlocal(level, i)
+    if k == nil then
+      break
+    end
+    if k == var then
+      return v
+    end
+  end
+
+  if use_globals == true and _G[var] ~= nil then return _G[var] end
+  
+  error(string.format("Could not find variable: %s", var))
 end
 
-if b() ~= "0x64 0xC8" then
-  error()
+function lookup2(var, level, use_globals)
+  for l=level,100,1 do
+    for i=1,100,1 do
+      local status, k, v = pcall(debug.getlocal, l+1, i)
+      if not status then goto loopend end
+      
+      if k == nil then
+        break
+      end
+      if k == var then
+        return v
+      end
+    end
+  end
+  
+  ::loopend::
+  if use_globals == true and _G[var] ~= nil then return _G[var] end
+  
+  error(string.format("Could not find variable: %s", var))
 end
 
--- This will throw an error because of tail calls:
-function c()
-  local local_1 = 200
-  return f[[{global_1} {local_1}]]
+function f(s, use_globals, default_number_format)  
+  local default_number_format = default_number_format or "0x%X"
+  local use_globals = use_globals or true
+  
+  local parts = parse(s)
+  for i, part in ipairs(parts) do
+    if type(part) ~= "string" then
+      local value = lookup(part.lhs, 3, use_globals)
+      if type(value) == "number" then
+        parts[i] = string.format(part.rhs or default_number_format, value)
+      else
+        parts[i] = string.format(part.rhs or "%s", value)
+      end
+      
+    end
+  end
+  
+  return table.concat(parts, "")
 end
 
-local r = pcall(c)
-if r ~= false then error() end
+-- defaults:
+lookup = lookup2
+
+return f, namespace -- for future options
