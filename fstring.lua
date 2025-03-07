@@ -71,13 +71,15 @@ function lookup(var, level, use_globals)
       return v
     end
   end
+
+
   
   if use_globals == true and _G[var] ~= nil then return _G[var] end
   
   error(string.format("Could not find variable: %s", var))
 end
 
-function f(s, use_globals, default_number_format)
+function f(s, use_globals, default_number_format)  
   local default_number_format = default_number_format or "0x%X"
   local use_globals = use_globals or true
   
